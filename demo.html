@@ -1,0 +1,33 @@
+<!-- This is a comment -->
+<!-- Declare the document type and language -->
+<!-- When you see 'G: "something"' this is shorthand for 'Google "something" for more info' -->
+<!DOCTYPE html>
+<html lang="en">
+
+<!-- the head can be used to include scripts, images, stylesheets, etc -->
+<head>
+<title>Demo 1</title>
+<style type="text/css">
+	/*G: "CSS Selectors"*/
+	canvas { 
+		/*G: "CSS attributes"*/
+		width:100%;
+		height:100%;
+		background-color:blue;
+	}
+	body {
+		margin:0px;
+	}
+</style>
+<!-- The HTML equivalent of an include statement. This is the most barebones way of including script files -->
+<script type="text/javascript" src="demo1.js"></script>
+</head>
+
+<!-- The body of the document is where we put our site content -->
+<body oncontextmenu = "return false">
+
+<!-- Our canvas element! -->
+<canvas id='canvas'/>
+</body>
+
+</html>
