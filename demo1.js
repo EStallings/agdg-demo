@@ -3,11 +3,17 @@
 canvas = null;
 gfx = null;
 gl = gameLoop2;
+width = 0;
+height = 0;
 
 // This is a safe way of isolating an entry point for your program
 window.onload = function(){
-
-}
+	canvas = document.getElementById('canvas');
+	gfx = canvas.getContext('2d');
+	width = canvas.width = window.innerWidth;
+	height = canvas.height = window.innerHeight;
+	init_particles(200);
+};
 
 
 /*
@@ -15,191 +21,125 @@ window.onload = function(){
 
 */
 
-
-function update(dt){
-
-}
-
-function redraw(dt){
-
-}
-
-//A lesson in game loops in Javascript/HTML
-
-function timestamp() {
-  return window.performance && window.performance.now ? window.performance.now() : new Date().getTime();
-}
-var now, dt, last = timestamp(), step = 1/60;
-
-function gameLoop1(){ //Terrible
-	while(true){
-		update(step);
-		redraw(step);
+function rint(n) { return Math.floor(Math.random()*n); }
+function HSVtoRGB(h, s, v) {
+	var r, g, b, i, f, p, q, t;
+	if (h && s === undefined && v === undefined) {
+		s = h.s, v = h.v, h = h.h;
 	}
+	i = Math.floor(h * 6);
+	f = h * 6 - i;
+	p = v * (1 - s);
+	q = v * (1 - f * s);
+	t = v * (1 - (1 - f) * s);
+	switch (i % 6) {
+		case 0: r = v, g = t, b = p; break;
+		case 1: r = q, g = v, b = p; break;
+		case 2: r = p, g = v, b = t; break;
+		case 3: r = p, g = q, b = v; break;
+		case 4: r = t, g = p, b = v; break;
+		case 5: r = v, g = p, b = q; break;
+	}
+	return "rgb(" + Math.floor(r * 255) + "," + Math.floor(g * 255) + "," + Math.floor(b * 255) + ")";
 }
-
-function gameLoop2(){ //Bad
-	update(step);
-	redraw(step);
-	setTimeout(gl, step); 
-}
-
-function gameLoop3(){ //Bad
-	update(step);
-	redraw(step);
-	requestAnimationFrame(gl)
-}
-
-function gameLoop4(){ //Okay, flawed
-	now = timestamp();
-	dt = (now - last) / 1000;
-	update(dt);
-	redraw(dt);
-	last = now;
+function init_particles(n){
+	for(var i = 0; i < n; i++){
+		var p = makeRandomParticle();
+		particles.push(p);
+	}
+	gl = gameLoop5;
 	requestAnimationFrame(gl);
 }
 
-function gameLoop4(){ //Good
-	now = timestamp();
-	dt = Math.min((now - last) / 1000, 0.5);
-	update(dt);
-	redraw(dt);
-	last = now;
-	requestAnimationFrame(gl);
+var makeRandomParticle = function(){
+	return new Particle(rint(width), rint(height), Math.random()*2-1, Math.random()*2-1, rint(5)+2, HSVtoRGB(Math.random(), 1, 1));
 }
 
-function gameLoop5() { //Fixed
-  now = timestamp();
-  dt = dt + Math.min(1, (now - last) / 1000);
-  while(dt > step) {
-    dt = dt - step;
-    update(step);
-  }
-  render(dt);
-  last = now;
-  requestAnimationFrame(gl);
+var randomizeParticle = function(p) {
+	p.x = rint(width);
+	p.y = rint(height);
+	p.vx = Math.random()*2-1;
+	p.vy = Math.random()*2-1;
+	p.r = rint(5)+2;
+	p.c = HSVtoRGB(Math.random(), 1, 1);
 }
 
+var particles = [];
 
+function update(dt) {
+	for(var i = 0; i < particles.length; i++) {
+		var p1 = particles[i];
+		p1.x += p1.vx;
+		p1.y += p1.vy;
+		if(p1.x < 0) p1.x = width-1;
+		if(p1.x > width-1) p1.x = 0;
+		if(p1.y < 0) p1.y = width-1;
+		if(p1.y > width-1) p1.y = 0;
+		if(p1.r > 200) randomizeParticle(p1);
+		for(var j = i+1; j < particles.length; j++) {
+			p2 = particles[j];
+			var dx = p1.x-p2.x;
+			var dy = p1.y-p2.y;
+			var d = dx*dx + dy*dy;
+			if(d < 1) {
+				if(p1.r == p2.r) continue;
+				if(p1.r < p2.r){
+					var tmp = p1;
+					p1 = p2;
+					p2 = tmp;
+				}
+				p1.r = Math.cbrt(p1.r*p1.r*p1.r + p2.r*p2.r*p2.r);
+				randomizeParticle(p2);
+			}
+			var fgrav = 0.0001*(p1.r * p1.r * p1.r * p2.r * p2.r * p2.r) / d;
+			var a = Math.atan2(p1.y-p2.y, p1.x-p2.x);
+			var fx = Math.cos(a) * fgrav;
+			var fy = Math.sin(a) * fgrav;
+			p1.vx -= fx/p1.r;
+			p1.vy -= fy/p1.r;
+			p2.vx += fx/p2.r;
+			p2.vy += fy/p2.r;
 
+			var v1 = Math.sqrt(p1.vx*p1.vx + p1.vy*p1.vy);
+			var v2 = Math.sqrt(p2.vx*p2.vx + p2.vy*p2.vy);
+			var a1 = Math.atan2(p1.vy, p1.vx);
+			var a2 = Math.atan2(p2.vy, p2.vx);
+			var sx1 = (p1.vx >= 0) ? 1 : -1;
+			var sy1 = (p1.vy >= 0) ? 1 : -1;
+			var sx2 = (p2.vx >= 0) ? 1 : -1;
+			var sy2 = (p2.vy >= 0) ? 1 : -1;
+			v1 = Math.min(v1, 1);
+			v2 = Math.min(v2, 1);
+			p1.vx = Math.cos(a1)*v1;
+			p1.vy = Math.sin(a1)*v1;
+			p2.vx = Math.cos(a2)*v2;
+			p2.vy = Math.sin(a2)*v2;
+			// if(coll(p1.x, p1.y, p1.r, p2.x, p2.y, p2.r)){
+			// 	var a = Math.atan2(p1.y-p2.y, p1.x-p2.x);
 
-
-
-///INPUT///
-
-var KEY_CODE = {
-	'UP':     38, 'DOWN':   40,
-	'LEFT':   37, 'RIGHT':  39,
-	'BKSP':   8,  'ENTER':  13,
-	'TAB':    9,  'ESC':    27,
-	'PGUP':   33, 'PGDOWN': 34,
-	'HOME':   36, 'END':    35,
-	'INS':    45, 'DEL':    46,
-	'SPACE':  32, 'TILDE':  192,
-	'0':48,'1':49,'2':50,'3':51,'4':52,'5':53,'6':54,'7':55,'8':56,'9':57,
-	'A':65,'B':66,'C':67,'D':68,'E':69,'F':70,'G':71,'H':72,'I':73,'J':74,'K':75,'L':76,'M':77,'N':78,'O':79,'P':80,'Q':81,'R':82,'S':83,'T':84,'U':85,'V':86,'W':87,'X':88,'Y':89,'Z':90
-};
-
-var CHAR_CODE = {
-	38: 'UP',   40:  'DOWN',
-	37: 'LEFT', 39:  'RIGHT',
-	8:  'BKSP', 13:  'ENTER',
-	9:  'TAB',  27:  'ESC',
-	33: 'PGUP', 34:  'PGDOWN',
-	36: 'HOME', 35:  'END',
-	45: 'INS',  46:  'DEL',
-	32: 'SPACE',192: 'TILDE',
-	48:'0',49:'1',50:'2',51:'3',52:'4',53:'5',54:'6',55:'7',56:'8',57:'9',
-	65:'A',66:'B',67:'C',68:'D',69:'E',70:'F',71:'G',72:'H',73:'I',74:'J',75:'K',76:'L',77:'M',78:'N',79:'O',80:'P',81:'Q',82:'R',83:'S',84:'T',85:'U',86:'V',87:'W',88:'X',89:'Y',90:'Z'
-};
-
-var INPUT = {};
-INPUT.keys = {
-	'ALT':   false, 'CTRL':   false, 'SHIFT': false,
-	'UP':    false, 'DOWN':   false,
-	'LEFT':  false, 'RIGHT':  false,
-	'BKSP':  false, 'ENTER':  false,
-	'TAB':   false, 'ESC':    false,
-	'PGUP':  false, 'PGDOWN': false,
-	'HOME':  false, 'END':    false,
-	'INS':   false, 'DEL':    false,
-	'SPACE': false, 'TILDE':  false,
-	'0':false,'1':false,'2':false,'3':false,'4':false,'5':false,'6':false,'7':false,'8':false,'9':false,
-	'A':false,'B':false,'C':false,'D':false,'E':false,'F':false,'G':false,'H':false,'I':false,'J':false,'K':false,'L':false,'M':false,'N':false,'O':false,'P':false,'Q':false,'R':false,'S':false,'T':false,'U':false,'V':false,'W':false,'X':false,'Y':false,'Z':false
-};
-INPUT.mouse = {
-	'X':0,
-	'Y':0,
-	'LMB':false,
-	'MMB':false,
-	'RMB':false,
-	'SCROLL':0
-};
-
-var fn_keys = function(e){
-	INPUT.keys['ALT'] = e.altKey;
-	INPUT.keys['CTRL'] = e.ctrlKey;
-	INPUT.keys['SHIFT'] = e.shiftKey;
+			// }
+		}
+	}
 }
 
-function killEvent(e){
-	e.preventDefault();
-	e.stopPropagation();
+function redraw(dt) {
+	gfx.clearRect(0,0,width,height);
+
+	for(var i in particles){
+		var part = particles[i];
+		gfx.beginPath();
+		gfx.arc(Math.floor(part.x), Math.floor(part.y), part.r, 0, 2*Math.PI, false);
+		gfx.fillStyle = part.c;
+		gfx.fill();
+		gfx.stroke();
+	}
 }
 
-window.onkeydown = function(e) {
-	if(CHAR_CODE[e.keyCode]) {
-		INPUT.keys[CHAR_CODE[e.keyCode]] = true;
-	}
-	fn_keys(e);
-	killEvent(e);
-	return false;
-};
-
-window.onkeyup = function(e) {
-	if(CHAR_CODE[e.keyCode]) {
-		INPUT.keys[CHAR_CODE[e.keyCode]] = false;
-
-	}
-	fn_keys(e);
-	killEvent(e);
-	return false;
-};
-
-window.onmousedown = function(e) {
-	switch(e.which){
-		case 1: INPUT.mouse['LMB'] = true; break;
-		case 2: INPUT.mouse['MMB'] = true; break;
-		case 3: INPUT.mouse['RMB'] = true; break;
-		default: break;
-	}
-	fn_keys(e);
-	killEvent(e);
-	return false;
-};
-
-window.onmouseup = function(e) {
-	switch(e.which){
-		case 1: INPUT.mouse['LMB'] = false; break;
-		case 2: INPUT.mouse['MMB'] = false; break;
-		case 3: INPUT.mouse['RMB'] = false; break;
-		default: break;
-	}
-	fn_keys(e);
-	killEvent(e);
-	return false;
-};
-
-window.onmousemove = function(e) {
-	INPUT.mouse['X'] = e.clientX;
-	INPUT.mouse['Y'] = e.clientY;
-	fn_keys(e);
-	killEvent(e);
-	return false;
-};
-
-window.onmousewheel = function(e) {
-	INPUT.mouse['SCROLL'] = e.deltaY;
-	killEvent(e);
-	return false;
+function Particle(x, y, vx, vy, r, c){
+	this.x = x;
+	this.y = y;
+	this.r = r;
+	this.c = c;
+	this.vx = vx;
+	this.vy = vy;
 }
